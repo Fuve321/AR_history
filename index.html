@@ -41,18 +41,17 @@
   device-orientation-permission-ui="enabled: false">
 
   <a-assets>
-    <a-asset-item id="char" src="./character.glb"></a-asset-item>
+      <a-asset-item id="char" src="./Talking.glb"></a-asset-item>
   </a-assets>
 
   <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
   <a-entity id="target" mindar-image-target="targetIndex: 0">
-    <a-gltf-model
-      src="#char"
-      position="0 -0.4 0"
-      scale="0.6 0.6 0.6"
-      animation-mixer="clip: Talk; loop: repeat">
-    </a-gltf-model>
+      <a-gltf-model src="#char"
+                    position="0 -0.4 0"
+                    scale="0.6 0.6 0.6"
+                    animation-mixer="loop: repeat">
+      </a-gltf-model>
   </a-entity>
 </a-scene>
 
