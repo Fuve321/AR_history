@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>История колледжа в AR</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    #start {
+      position: fixed; inset: 0; z-index: 20; background: #1b2a49; color: #fff;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 24px;
+    }
+    #start button { font-size: 20px; padding: 14px 28px; border: 0; border-radius: 10px; margin-top: 20px; }
+    #sub {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+      padding: 14px; font-size: 18px; color: #fff; text-align: center;
+      background: rgba(0,0,0,.6); min-height: 60px; display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="start">
+  <h2>История нашего колледжа</h2>
+  <p>Нажмите «Начать» и наведите камеру на афишу</p>
+  <button id="startBtn">Начать</button>
+</div>
+
+<div id="sub"></div>
+<audio id="voice" src="story.mp3" preload="auto"></audio>
+
+<a-scene
+  mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: yes; uiLoading: yes;"
+  color-space="sRGB"
+  renderer="colorManagement: true; physicallyCorrectLights: true"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false">
+
+  <a-assets>
+    <a-asset-item id="char" src="./character.glb"></a-asset-item>
+  </a-assets>
+
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+  <a-entity id="target" mindar-image-target="targetIndex: 0">
+    <a-gltf-model
+      src="#char"
+      position="0 -0.4 0"
+      scale="0.6 0.6 0.6"
+      animation-mixer="clip: Talk; loop: repeat">
+    </a-gltf-model>
+  </a-entity>
+</a-scene>
+
+<script>
+  const scene = document.querySelector('a-scene');
+  const target = document.getElementById('target');
+  const audio = document.getElementById('voice');
+  const sub = document.getElementById('sub');
+
+  const lines = [
+    { t: 0,  text: "Здравствуйте! Я расскажу вам об истории нашего колледжа." },
+    { t: 5,  text: "Он был основан в ГОД ..." },
+    { t: 12, text: "Сегодня мы гордимся ..." }
+  ];
+
+  document.getElementById('startBtn').onclick = () => {
+    // "разблокируем" звук жестом пользователя
+    audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(() => {});
+    document.getElementById('start').style.display = 'none';
+    sub.style.display = 'block';
+    sub.textContent = "Наведите камеру на афишу";
+    scene.systems['mindar-image-system'].start();
+  };
+
+  target.addEventListener('targetFound', () => audio.play());
+  target.addEventListener('targetLost',  () => audio.pause());
+
+  audio.addEventListener('timeupdate', () => {
+    const cur = [...lines].reverse().find(l => audio.currentTime >= l.t);
+    if (cur) sub.textContent = cur.text;
+  });
+</script>
+
+</body>
+</html>
