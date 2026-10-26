@@ -15,11 +15,6 @@
       text-align: center; padding: 24px;
     }
     #start button { font-size: 20px; padding: 14px 28px; border: 0; border-radius: 10px; margin-top: 20px; }
-    #sub {
-      position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
-      padding: 14px; font-size: 18px; color: #fff; text-align: center;
-      background: rgba(0,0,0,.6); min-height: 60px; display: none;
-    }
   </style>
 </head>
 <body>
@@ -30,7 +25,6 @@
   <button id="startBtn">Начать</button>
 </div>
 
-<div id="sub"></div>
 <audio id="voice" src="story.mp3" preload="auto"></audio>
 
 <a-scene
@@ -48,8 +42,8 @@
 
   <a-entity id="target" mindar-image-target="targetIndex: 0">
       <a-gltf-model src="#char"
-                    position="0 -0.5 0"
-                    scale="0.4 0.4 0.4"
+                    position="0 -0.4 0"
+                    scale="0.2 0.2 0.2"
                     animation-mixer="loop: repeat">
       </a-gltf-model>
   </a-entity>
@@ -59,30 +53,18 @@
   const scene = document.querySelector('a-scene');
   const target = document.getElementById('target');
   const audio = document.getElementById('voice');
-  const sub = document.getElementById('sub');
 
-  const lines = [
-    { t: 0,  text: "Здравствуйте! Я расскажу вам об истории нашего колледжа." },
-    { t: 5,  text: "Он был основан в ГОД ..." },
-    { t: 12, text: "Сегодня мы гордимся ..." }
-  ];
 
   document.getElementById('startBtn').onclick = () => {
     // "разблокируем" звук жестом пользователя
     audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(() => {});
     document.getElementById('start').style.display = 'none';
-    sub.style.display = 'block';
-    sub.textContent = "Наведите камеру на афишу";
     scene.systems['mindar-image-system'].start();
   };
 
   target.addEventListener('targetFound', () => audio.play());
   target.addEventListener('targetLost',  () => audio.pause());
 
-  audio.addEventListener('timeupdate', () => {
-    const cur = [...lines].reverse().find(l => audio.currentTime >= l.t);
-    if (cur) sub.textContent = cur.text;
-  });
 </script>
 
 </body>
