@@ -2,87 +2,716 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0e1a2f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e1a2f'/%3E%3Cpath d='M9 22V10h6.5a4 4 0 0 1 0 8H12v4z' fill='%23e8c26a'/%3E%3C/svg%3E">
   <title>История колледжа в AR</title>
+
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
   <style>
-    body { margin: 0; overflow: hidden; font-family: sans-serif; }
-    #start {
-      position: fixed; inset: 0; z-index: 20; background: #1b2a49; color: #fff;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      text-align: center; padding: 24px;
+    :root {
+      --ink: #0e1a2f;
+      --ink-2: #16243d;
+      --gold: #e8c26a;
+      --text: #f4f7fb;
     }
-    #start button { font-size: 20px; padding: 14px 28px; border: 0; border-radius: 10px; margin-top: 20px; }
-    #start .hint { font-size: 14px; opacity: 0.7; margin-top: 24px; max-width: 320px; }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: var(--ink);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overscroll-behavior: none;
+      touch-action: manipulation;
+    }
+
+    /* ---------- Стартовый экран ---------- */
+    #intro {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: max(28px, env(safe-area-inset-top)) 26px max(28px, env(safe-area-inset-bottom));
+      text-align: center;
+      background:
+        radial-gradient(120% 90% at 50% 0%, #1e3355 0%, #0e1a2f 58%, #0a1322 100%);
+    }
+
+    #intro .badge {
+      font-size: 12px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--gold);
+      border: 1px solid rgba(232, 194, 106, .45);
+      border-radius: 999px;
+      padding: 7px 15px;
+    }
+
+    #intro h1 {
+      margin: 0;
+      font-size: clamp(26px, 7.6vw, 38px);
+      line-height: 1.15;
+      font-weight: 700;
+      max-width: 15ch;
+    }
+
+    #intro p {
+      margin: 0;
+      max-width: 30ch;
+      font-size: clamp(15px, 4.2vw, 17px);
+      line-height: 1.5;
+      color: #c3d0e4;
+    }
+
+    #startBtn {
+      margin-top: 6px;
+      font-size: 19px;
+      font-weight: 600;
+      font-family: inherit;
+      color: #16202f;
+      background: linear-gradient(180deg, #f3d791, var(--gold));
+      border: 0;
+      border-radius: 14px;
+      padding: 17px 40px;
+      cursor: pointer;
+      box-shadow: 0 10px 26px rgba(232, 194, 106, .28);
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+    #startBtn:active { transform: translateY(1px) scale(.99); box-shadow: 0 6px 16px rgba(232, 194, 106, .22); }
+    #startBtn[disabled] { opacity: .65; }
+
+    #intro .hint {
+      font-size: 13px;
+      line-height: 1.45;
+      color: #8fa2bd;
+      max-width: 34ch;
+    }
+    #intro .hint b { color: #b9c8dd; font-weight: 600; }
+
+    /* ---------- AR: подсказка поиска маркера ---------- */
+    #scan {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: none;
+      pointer-events: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #scan.on { display: flex; }
+
+    #scan .frame {
+      position: relative;
+      width: min(74vw, 300px);
+      aspect-ratio: 1.916;
+      border-radius: 18px;
+      border: 1.5px dashed rgba(255, 255, 255, .55);
+      box-shadow: 0 0 0 100vmax rgba(8, 15, 27, .28);
+    }
+    #scan .frame::before,
+    #scan .frame::after {
+      content: "";
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      border: 3px solid var(--gold);
+      border-radius: 4px;
+    }
+    #scan .frame::before { top: -2px; left: -2px; border-right: 0; border-bottom: 0; }
+    #scan .frame::after { bottom: -2px; right: -2px; border-left: 0; border-top: 0; }
+
+    #scan .label {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(50% - min(37vw, 150px) - 62px);
+      width: max-content;
+      max-width: 88vw;
+      text-align: center;
+      font-size: 16px;
+      line-height: 1.45;
+      padding: 10px 18px;
+      border-radius: 999px;
+      background: rgba(10, 19, 34, .72);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(255, 255, 255, .12);
+    }
+    #scan .label small { display: block; font-size: 12.5px; color: #93a6c0; margin-top: 3px; }
+
+    /* ---------- Загрузка ---------- */
+    #loader {
+      position: fixed;
+      inset: 0;
+      z-index: 35;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: rgba(10, 18, 32, .9);
+      backdrop-filter: blur(3px);
+      font-size: 15px;
+      color: #cfdcee;
+    }
+    #loader.on { display: flex; }
+    #bar {
+      width: min(62vw, 260px);
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .14);
+      overflow: hidden;
+    }
+    #bar i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #e8c26a, #f7e2ae);
+      transition: width .2s ease;
+    }
+    #barText { font-variant-numeric: tabular-nums; color: #93a6c0; font-size: 13px; }
+
+    /* ---------- Ошибка ---------- */
+    #error {
+      position: fixed;
+      inset: 0;
+      z-index: 45;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 30px 26px;
+      text-align: center;
+      background: #0e1a2f;
+    }
+    #error.on { display: flex; }
+    #error h2 { margin: 0; font-size: 21px; }
+    #error p { margin: 0; max-width: 32ch; line-height: 1.5; color: #b7c6da; font-size: 15px; }
+    #error button {
+      margin-top: 8px;
+      font: inherit;
+      font-weight: 600;
+      padding: 13px 28px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, .22);
+      background: rgba(255, 255, 255, .08);
+      color: #fff;
+    }
+
+    /* ---------- Кнопка звука ---------- */
+    #soundBtn {
+      position: fixed;
+      right: max(14px, env(safe-area-inset-right));
+      top: max(14px, env(safe-area-inset-top));
+      z-index: 32;
+      display: none;
+      width: 46px;
+      height: 46px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, .18);
+      background: rgba(10, 19, 34, .6);
+      backdrop-filter: blur(6px);
+      color: #fff;
+      font-size: 19px;
+      line-height: 1;
+    }
+    #soundBtn.on { display: flex; }
+
+    /* ---------- Отладка ---------- */
+    #debug {
+      position: fixed;
+      left: 10px;
+      bottom: calc(10px + env(safe-area-inset-bottom));
+      z-index: 50;
+      width: 250px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(6, 12, 22, .86);
+      border: 1px solid rgba(255, 255, 255, .16);
+      font-size: 12px;
+      color: #cfdcee;
+      display: none;
+    }
+    #debug.on { display: block; }
+    #debug label { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+    #debug input[type=range] { flex: 1; }
+    #debug .val { width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+    #debug pre { margin: 8px 0 0; font-size: 11px; color: #8fa2bd; white-space: pre-wrap; }
+
+    a-scene { position: fixed !important; inset: 0; width: 100%; height: 100%; }
   </style>
 </head>
 <body>
 
-<div id="start">
-  <h2>История нашего колледжа</h2>
-  <p>Нажмите «Начать» и наведите камеру на афишу</p>
+<div id="intro">
+  <div class="badge">Дополненная реальность</div>
+  <h1>История нашего колледжа</h1>
+  <p>Наведите камеру на афишу — и прямо над ней появится наш герой.</p>
   <button id="startBtn">Начать</button>
-  <p class="hint">Если камера не включается, откройте эту страницу в Chrome или Safari.</p>
+  <p class="hint">Нужны <b>камера</b> и <b>звук</b>. Откройте сайт в Chrome или Safari — по ссылке <b>https://…</b>, камера на обычном http не работает.</p>
 </div>
 
-<audio id="voice" src="story.mp3" preload="auto"></audio>
+<div id="loader">
+  <div>Загружаем модель…</div>
+  <div id="bar"><i></i></div>
+  <div id="barText">0 %</div>
+</div>
+
+<div id="scan">
+  <div class="frame"></div>
+  <div class="label">
+    Наведите камеру на афишу
+    <small>Держите целиком в кадре, в 30–60 см</small>
+  </div>
+</div>
+
+<button id="soundBtn" aria-label="Звук">🔊</button>
+
+<div id="error">
+  <h2 id="errorTitle">Не удалось включить камеру</h2>
+  <p id="errorText"></p>
+  <button id="retryBtn">Попробовать снова</button>
+</div>
+
+<div id="debug">
+  <div>Отладка модели</div>
+  <label>Высота <input id="dHeight" type="range" min="0.15" max="1.6" step="0.01" value="0.6"><span class="val" id="vHeight">0.60</span></label>
+  <label>Поворот <input id="dYaw" type="range" min="-180" max="180" step="1" value="0"><span class="val" id="vYaw">0°</span></label>
+  <label>Влево/вправо <input id="dX" type="range" min="-0.6" max="0.6" step="0.01" value="0"><span class="val" id="vX">0.00</span></label>
+  <label>Выше/ниже <input id="dY" type="range" min="-0.6" max="0.6" step="0.01" value="0"><span class="val" id="vY">0.00</span></label>
+  <label>Ближе/дальше <input id="dZ" type="range" min="-0.6" max="0.6" step="0.01" value="0"><span class="val" id="vZ">0.00</span></label>
+  <pre id="debugInfo"></pre>
+  <pre id="debugStatus"></pre>
+</div>
 
 <a-scene
-  mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: yes; uiLoading: yes; filterMinCF: 0.001; filterBeta: 1000; missTolerance: 5; warmupTolerance: 5;"
+  id="scene"
+  mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: no; uiLoading: no; uiError: no; filterMinCF: 0.001; filterBeta: 1000; missTolerance: 6; warmupTolerance: 5;"
   color-space="sRGB"
+  renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true; alpha: true"
   vr-mode-ui="enabled: false"
   device-orientation-permission-ui="enabled: false">
 
-  <a-assets>
-    <a-asset-item id="char" src="./Talking.glb"></a-asset-item>
-  </a-assets>
-
   <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-  <!-- Свет, чтобы модель не выглядела тёмной -->
-  <a-light type="ambient" intensity="1.2"></a-light>
-  <a-light type="directional" position="0 1 1" intensity="1"></a-light>
+  <a-light type="ambient" color="#ffffff" intensity="1.2"></a-light>
+  <a-light type="directional" color="#fff6e8" position="0.4 1 1.2" intensity="1.0"></a-light>
+  <a-light type="hemisphere" color="#ffffff" ground-color="#7d8ea6" intensity="0.6"></a-light>
 
   <a-entity id="target" mindar-image-target="targetIndex: 0">
-    <a-gltf-model id="mascot" src="#char"
-                  position="0 0 0"
-                  scale="0.6 0.6 0.6"
-                  animation-mixer="loop: repeat; timeScale: 0">
-    </a-gltf-model>
+    <a-entity id="char" position="0 0 0" scale="1 1 1"
+              animation-mixer="clip: *; loop: repeat; timeScale: 1; crossFadeDuration: 0.2"></a-entity>
   </a-entity>
 </a-scene>
 
 <script>
-  const scene        = document.querySelector('a-scene');
-  const target       = document.getElementById('target');
-  const mascot       = document.getElementById('mascot');
-  const audio        = document.getElementById('voice');
-  const startOverlay = document.getElementById('start');
+(() => {
+  'use strict';
 
-  // Запуск/остановка анимации вместе со звуком
-  const setAnim = (speed) => mascot.setAttribute('animation-mixer', 'timeScale', speed);
+  // ------------------------------------------------------------------
+  // Настройки показа модели
+  // ------------------------------------------------------------------
+  // Маркер: 891 x 465 px → в mind-ar его ширина = 1 единица, высота = 0.522.
+  const MARKER_ASPECT = 465 / 891;
 
-  document.getElementById('startBtn').onclick = async () => {
-    // "разблокируем" звук жестом пользователя
-    audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(() => {});
-    startOverlay.style.display = 'none';
-    try {
-      await scene.systems['mindar-image-system'].start();
-    } catch (e) {
-      console.error(e);
-      startOverlay.style.display = 'flex';
-      alert('Не удалось включить камеру. Разрешите доступ к камере и откройте страницу в Chrome или Safari.');
-    }
+  const params = new URLSearchParams(location.search);
+  const num = (key, def) => {
+    const v = parseFloat(params.get(key));
+    return Number.isFinite(v) ? v : def;
   };
 
-  target.addEventListener('targetFound', () => { audio.play(); setAnim(1); });
-  target.addEventListener('targetLost',  () => { audio.pause(); setAnim(0); });
+  const CONFIG = {
+    height:  num('h', 0.60),          // высота модели в единицах ширины маркера
+    yaw:     num('yaw', 0),           // поворот вокруг вертикали, градусы
+    offsetX: num('x', 0),
+    offsetY: num('y', 0),
+    offsetZ: num('z', 0),
+    feetAtBottom: params.get('feet') !== 'center',
+  };
+  const DEBUG = params.get('debug') === '1';
 
-  // Когда рассказ закончился, маскот замолкает
-  audio.addEventListener('ended', () => setAnim(0));
+  const MODEL_FILE = './Talking.glb';
+  const AUDIO_FILE = './story.mp3';
+
+  // ------------------------------------------------------------------
+  // DOM
+  // ------------------------------------------------------------------
+  const $ = (id) => document.getElementById(id);
+  const intro = $('intro');
+  const startBtn = $('startBtn');
+  const loader = $('loader');
+  const bar = $('bar').firstElementChild;
+  const barText = $('barText');
+  const scan = $('scan');
+  const errorBox = $('error');
+  const errorTitle = $('errorTitle');
+  const errorText = $('errorText');
+  const retryBtn = $('retryBtn');
+  const soundBtn = $('soundBtn');
+  const debugBox = $('debug');
+  const debugInfo = $('debugInfo');
+  const debugStatus = $('debugStatus');
+
+  const scene = $('scene');
+  const targetEl = $('target');
+  const charEl = $('char');
+
+  // ------------------------------------------------------------------
+  // Аудио
+  // ------------------------------------------------------------------
+  const audio = new Audio(AUDIO_FILE);
+  audio.preload = 'auto';
+  audio.playsInline = true;
+  let soundEnabled = true;
+
+  const updateSoundBtn = () => { soundBtn.textContent = soundEnabled ? '🔊' : '🔇'; };
+  soundBtn.addEventListener('click', () => {
+    soundEnabled = !soundEnabled;
+    if (!soundEnabled) audio.pause();
+    else if (targetEl.object3D && targetEl.object3D.visible) audio.play().catch(() => {});
+    updateSoundBtn();
+  });
+
+  function playVoice() {
+    if (!soundEnabled) return;
+    audio.play().catch(() => { /* автозапуск может быть заблокирован — это не критично */ });
+  }
+  function pauseVoice() { audio.pause(); }
+
+  // ------------------------------------------------------------------
+  // Загрузка модели с прогрессом
+  // ------------------------------------------------------------------
+  function showLoader() { loader.classList.add('on'); }
+  function hideLoader() { loader.classList.remove('on'); }
+  function setProgress(p) {
+    const pct = Math.max(0, Math.min(1, p));
+    bar.style.width = (pct * 100).toFixed(0) + '%';
+    barText.textContent = (pct * 100).toFixed(0) + ' %';
+  }
+
+  async function fetchModel(url) {
+    const response = await fetch(url, { cache: 'force-cache' });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    if (DEBUG) console.log('model: response', response.status, response.headers.get('content-length'));
+
+    const total = Number(response.headers.get('content-length')) || 0;
+    const reader = response.body && response.body.getReader ? response.body.getReader() : null;
+
+    if (!reader) {                     // старые браузеры — без прогресса
+      const blob = await response.blob();
+      return URL.createObjectURL(blob);
+    }
+
+    const chunks = [];
+    let received = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      setProgress(total ? received / total : 0.5);
+    }
+    setProgress(1);
+    return URL.createObjectURL(new Blob(chunks, { type: 'model/gltf-binary' }));
+  }
+
+  // ------------------------------------------------------------------
+  // Автоподгонка модели под маркер
+  // ------------------------------------------------------------------
+  const THREE = AFRAME.THREE;
+  let modelLoaded = false;
+  let fitted = false;
+  let fitInfo = '';
+
+  // Габариты модели в её собственной системе координат.
+  // Считаем по локальным матрицам узлов: не зависим от того, нашёл ли mind-ar
+  // маркер (пока маркер не найден, мировая матрица цели нулевая).
+  function modelBox(root) {
+    const box = new THREE.Box3();
+    const transformed = new THREE.Box3();
+
+    const walk = (node, parent) => {
+      if (node.matrixAutoUpdate) node.updateMatrix();
+      const local = new THREE.Matrix4().multiplyMatrices(parent, node.matrix);
+
+      const geometry = node.geometry;
+      if (geometry) {
+        if (!geometry.boundingBox) geometry.computeBoundingBox();
+        if (geometry.boundingBox) {
+          transformed.copy(geometry.boundingBox).applyMatrix4(local);
+          box.union(transformed);
+        }
+      }
+      for (let i = 0; i < node.children.length; i++) walk(node.children[i], local);
+    };
+
+    walk(root, new THREE.Matrix4());
+    return box;
+  }
+
+  function fitModel() {
+    const root = charEl.getObject3D('mesh');
+    if (!root) return false;
+
+    const box = modelBox(root);
+    if (box.isEmpty()) return false;
+
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    if (!(size.y > 0) || !isFinite(size.y)) return false;
+
+    const scale = CONFIG.height / size.y;
+    const yaw = CONFIG.yaw * Math.PI / 180;
+    const markerHalfHeight = MARKER_ASPECT / 2;
+
+    // Низ модели ставим на нижний край маркера (или в центр — если feet=center)
+    const baseY = CONFIG.feetAtBottom ? -markerHalfHeight : 0;
+
+    charEl.object3D.scale.setScalar(scale);
+    charEl.object3D.rotation.set(0, yaw, 0);
+    charEl.object3D.position.set(
+      -center.x * scale + CONFIG.offsetX,
+      baseY - box.min.y * scale + CONFIG.offsetY,
+      -center.z * scale + CONFIG.offsetZ
+    );
+
+    // Точный размер после масштаба
+    const finalHeight = size.y * scale;
+    fitInfo = [
+      'исходная высота: ' + size.y.toFixed(2) + ' ед.',
+      'масштаб: ' + scale.toFixed(4),
+      'высота: ' + finalHeight.toFixed(3) + ' (маркер ' + MARKER_ASPECT.toFixed(3) + ')',
+      'низ: ' + (baseY - box.min.y * scale + CONFIG.offsetY).toFixed(3),
+    ].join('\n');
+    debugInfo.textContent = fitInfo;
+
+    fitted = true;
+    return true;
+  }
+
+  function setupDebug() {
+    if (!DEBUG) return;
+    debugBox.classList.add('on');
+
+    const link = (inputId, valId, key, fmt) => {
+      const input = $(inputId);
+      const out = $(valId);
+      input.value = CONFIG[key];
+      out.textContent = fmt(CONFIG[key]);
+      input.addEventListener('input', () => {
+        CONFIG[key] = parseFloat(input.value);
+        out.textContent = fmt(CONFIG[key]);
+        fitModel();
+      });
+    };
+
+    link('dHeight', 'vHeight', 'height', (v) => v.toFixed(2));
+    link('dYaw', 'vYaw', 'yaw', (v) => Math.round(v) + '°');
+    link('dX', 'vX', 'offsetX', (v) => v.toFixed(2));
+    link('dY', 'vY', 'offsetY', (v) => v.toFixed(2));
+    link('dZ', 'vZ', 'offsetZ', (v) => v.toFixed(2));
+
+    const box = new THREE.Box3();
+    const size = new THREE.Vector3();
+    setInterval(() => {
+      const root = charEl.getObject3D('mesh');
+      if (!root) return;
+      box.setFromObject(root, true);
+      box.getSize(size);
+      const marker = targetEl.object3D && targetEl.object3D.visible;
+      const h = isFinite(size.y) ? size.y.toFixed(3) : '—';
+      debugStatus.textContent = 'видимая высота: ' + h + '\nмаркер: ' + (marker ? 'найден' : 'не найден');
+    }, 1500);
+  }
+
+  // ------------------------------------------------------------------
+  // Стартовый экран / камера
+  // ------------------------------------------------------------------
+  const system = () => scene.systems['mindar-image-system'];
+
+  function showError(title, text, canRetry = true) {
+    errorTitle.textContent = title;
+    errorText.textContent = text;
+    retryBtn.style.display = canRetry ? 'inline-block' : 'none';
+    errorBox.classList.add('on');
+    hideLoader();
+  }
+
+  function describeCameraError(err) {
+    const name = (err && (err.name || err.message)) || '';
+    if (/NotAllowed|Permission|Security/i.test(name)) {
+      return 'Доступ к камере запрещён. Нажмите на иконку камеры в адресной строке и выберите «Разрешить», затем нажмите «Попробовать снова».';
+    }
+    if (/NotFound|DevicesNotFound/i.test(name)) {
+      return 'Камера не найдена. Проверьте, что она не занята другим приложением.';
+    }
+    if (/NotReadable|TrackStart/i.test(name)) {
+      return 'Камера занята другим приложением. Закройте его и попробуйте снова.';
+    }
+    if (!window.isSecureContext) {
+      return 'Страница открыта без HTTPS. Камера работает только по защищённому адресу https:// (или на localhost).';
+    }
+    return 'Причина: ' + (name || 'неизвестна') + '. Попробуйте обновить страницу или открыть её в Chrome / Safari.';
+  }
+
+  let arStarted = false;
+
+  function updateScanHint() {
+    if (!arStarted) return;
+    const visible = !!(targetEl.object3D && targetEl.object3D.visible);
+    scan.classList.toggle('on', !visible);
+  }
+
+  async function begin() {
+    if (!window.isSecureContext) {
+      showError(
+        'Нужен HTTPS',
+        'Камера в браузере доступна только по https://. Откройте сайт по защищённой ссылке (например, https://fuve321.github.io/AR_history/) или на localhost.',
+        false
+      );
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showError('Браузер не поддерживает камеру', 'Откройте сайт в Chrome, Safari или Firefox последней версии.', false);
+      return;
+    }
+
+    const probe = document.createElement('canvas');
+    const gl = probe.getContext('webgl2') || probe.getContext('webgl') || probe.getContext('experimental-webgl');
+    if (!gl) {
+      showError('Нет поддержки 3D', 'Браузер не может показать 3D-графику. Попробуйте Chrome или Safari и отключите экономию энергии.', false);
+      return;
+    }
+
+    // Ждём, пока A-Frame полностью инициализирует сцену
+    if (!scene.hasLoaded) {
+      await new Promise((resolve) => scene.addEventListener('loaded', resolve, { once: true }));
+    }
+
+    intro.style.display = 'none';
+    errorBox.classList.remove('on');
+    soundBtn.classList.add('on');
+    arStarted = true;
+    scan.classList.add('on');
+    showLoader();
+    setProgress(0);
+
+    // 1) Камера
+    try {
+      await system().start();
+    } catch (err) {
+      console.error('camera start failed', err);
+      arStarted = false;
+      soundBtn.classList.remove('on');
+      scan.classList.remove('on');
+      showError('Не удалось включить камеру', describeCameraError(err));
+      return;
+    }
+
+    // 2) Модель (грузим параллельно со стартом камеры — начинаем сразу после)
+    try {
+      const url = await fetchModel(MODEL_FILE);
+      if (DEBUG) console.log('model: blob url', url);
+      // Важно: значение задаётся целиком — так компонент гарантированно видит src
+      charEl.setAttribute('gltf-model', url);
+      if (DEBUG) console.log('model: attribute set', String(charEl.components['gltf-model'].data).slice(0, 40));
+    } catch (err) {
+      console.error('model load failed', err);
+      showError('Не удалось загрузить модель', 'Проверьте соединение с интернетом и обновите страницу.', true);
+    }
+  }
+
+  retryBtn.addEventListener('click', () => {
+    errorBox.classList.remove('on');
+    begin();
+  });
+
+  startBtn.addEventListener('click', () => {
+    startBtn.disabled = true;
+
+    // Разблокируем звук именно жестом пользователя (требование iOS/Chrome).
+    // Не ждём промис: на некоторых устройствах play() висит без звукового выхода.
+    try {
+      const p = audio.play();
+      if (p && p.then) p.then(() => { audio.pause(); audio.currentTime = 0; }).catch(() => {});
+    } catch (e) { /* нет файла или звук запрещён — не мешаем AR */ }
+
+    begin();
+  });
+
+  // Модель готова → подгоняем размер (если маркер уже виден — иначе при первом появлении)
+  charEl.addEventListener('model-loaded', () => {
+    modelLoaded = true;
+    fitModel();
+    hideLoader();
+  });
+  charEl.addEventListener('model-error', (e) => {
+    console.error('model-error', e);
+    showError('Модель не загрузилась', 'Файл Talking.glb не найден или повреждён.', true);
+  });
+
+  // Маркер появился / пропал
+  targetEl.addEventListener('targetFound', () => {
+    scan.classList.remove('on');
+    if (modelLoaded && !fitted) fitModel();
+    playVoice();
+    try { charEl.setAttribute('animation-mixer', 'timeScale', 1); } catch (e) { /* ignore */ }
+  });
+
+  targetEl.addEventListener('targetLost', () => {
+    scan.classList.add('on');
+    pauseVoice();
+    try { charEl.setAttribute('animation-mixer', 'timeScale', 0); } catch (e) { /* ignore */ }
+  });
+
+  audio.addEventListener('ended', () => { /* анимацию не останавливаем: она зациклена */ });
+
+  // Экран не гаснет во время показа
+  let wakeLock = null;
+  const requestWakeLock = async () => {
+    try {
+      if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+    } catch (e) { /* не критично */ }
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') { wakeLock = null; return; }
+    requestWakeLock();
+    // iOS/Safari может поставить видео на паузу при возврате на вкладку
+    const sys = system();
+    if (sys && sys.video && sys.video.paused) sys.video.play().catch(() => {});
+  });
+
+  // Диагностика
+  scene.addEventListener('loaded', () => {
+    updateScanHint();
+    requestWakeLock();
+  });
+  setInterval(updateScanHint, 300);
+
+  window.addEventListener('error', (e) => console.error('window error', e.message));
+  window.addEventListener('unhandledrejection', (e) => console.error('unhandled rejection', e.reason));
+  setupDebug();
+
+  // Для отладки из консоли
+  window.AR = { CONFIG, fitModel, scene, charEl, targetEl, system };
+})();
 </script>
-
 </body>
 </html>
